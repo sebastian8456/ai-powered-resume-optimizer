@@ -39,6 +39,6 @@ The **AI-Powered Resume Optimizer with Job Matching** is a web application desig
 
 #### Prerequisites:
 Make sure you have the following installed:
-- **Node.js** (for frontend)
+- **React.js** (for frontend)
 - **Python 3.x** (for backend)
 - **PostgreSQL** (for the database)
