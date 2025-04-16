@@ -22,11 +22,11 @@ The **AI-Powered Resume Optimizer with Job Matching** is a web application desig
 ---
 
 ### Functional Requirements:
-- **Resume Parsing:** Parse resumes and extract relevant data.
-- **ATS Score Calculation:** Calculate how well a resume matches Applicant Tracking Systems.
-- **Resume Improvement Suggestions:** Provide AI-powered suggestions to improve the resume.
-- **Job Matching:** Recommend job listings based on resume data.
-- **Resume Export:** Allow users to download optimized resumes.
+- **Resume Uploading:** Users should be able to upload their resume.
+- **Resume Improvement Suggestions** Users should be able to get suggestions for their resume.
+- **Optimized resume:** Users should be able to generate an optimized resume.
+- **Job Matching:** Users should be able to find relevant job postings.
+- **Resume Export:** Users should be able to download and retrieve past resumes.
 
 ### Non-Functional Requirements:
 - **Performance:** The app should return resume analysis and job recommendations in under 3 seconds.
