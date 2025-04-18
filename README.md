@@ -6,6 +6,7 @@ A web app to optimize resumes and recommend job matches.
 - Sebastian Placzek
 - Raumaan Khan
 - Jiajie Weng
+- Pahul Mal
 
 ### Project Overview:
 The **AI-Powered Resume Optimizer with Job Matching** is a web application designed to help job seekers improve their resumes and find job roles that best fit their profile. Using **Natural Language Processing (NLP)**, the app analyzes resumes, calculates **ATS (Applicant Tracking System)** scores, suggests improvements, and recommends job listings based on the user’s qualifications.
