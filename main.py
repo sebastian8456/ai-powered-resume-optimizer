@@ -1,6 +1,10 @@
 from fastapi import FastAPI
+from dotenv import load_dotenv
+import requests
+from backend.APIs.open_ai import *
 
 app = FastAPI()
+load_dotenv()
 
 resume_list = []
 optimized_resume_list = []
@@ -10,8 +14,7 @@ job_postings_list = []
 async def root():
     return {"message": "Hello, please enter a valid endpoint: /resume, /optimized-resume, or /job-posting"}
 
-# Original resume requests
-
+# Resume HTTP requests
 @app.post("/resume")
 async def add_resume(resume: str = ""):
     resume_list.append(resume)
@@ -23,10 +26,16 @@ async def del_resume(resume: str = ""):
         resume_list.pop(-1)
     return {"Resume List: ": resume_list}
 
-@app.get("/resume")
+@app.get("/resumes")
 async def get_resume():
     return {"Resume List: ": resume_list}
 
+# Generate a new resume
+@app.get("/create-resume")
+async def create_resume():
+    resume = generate_resume(os.getenv("open_ai_secret"))
+    resume_list.append(resume)
+    return {"New resume: ": resume}
 
 # Optimized resume requests
 @app.post("/optimized-resume")
