@@ -68,3 +68,5 @@ async def del_string(job_posting: str = ""):
 @app.get("/job-posting")
 async def get_string():
     return {"Job Posting List": job_postings_list}
+
+#test
