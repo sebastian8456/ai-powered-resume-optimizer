@@ -7,9 +7,19 @@ from backend.classes.job_posting import *
 from backend.classes.suggestion import *
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 load_dotenv()
+
+# Make sure that CORS is properly configured
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React default port
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Set up database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./resume-checker.db"
