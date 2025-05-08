@@ -8,9 +8,13 @@ from backend.classes.suggestion import *
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from fastapi.middleware.cors import CORSMiddleware
+import os
+import openai
 
 app = FastAPI()
 load_dotenv()
+
+openai.api_key = os.getenv("open_ai_secret")
 
 # Make sure that CORS is properly configured
 app.add_middleware(
@@ -27,7 +31,6 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL,
                        connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
-
 
 #### DATABASE TABLES ####
 class ResumeDB(Base):
@@ -48,7 +51,6 @@ class JobPostingDB(Base):
 
 ## Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
-
 
 #### HTTP REQUESTS ####
 
@@ -89,6 +91,22 @@ async def create_resume():
     resume = generate_resume(os.getenv("open_ai_secret"))
     return {"New resume: ": resume}
 
+# Optimizer summary using OpenAI
+@app.post("/optimize-summary")
+async def optimize_summary(summary: str = ""):
+    if not summary:
+        raise HTTPException(status_code=400, detail="Summary cannot be empty.")
+    try:
+        prompt = f"Improve this resume summary to sound more professional:\n\n{summary}"
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=150
+        )
+        improved_summary = response.choices[0].message.content
+        return {"optimized_summary": improved_summary}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Suggestion requests
 @app.post("/suggestion", response_model=Suggestion)
@@ -115,7 +133,6 @@ async def get_suggestions():
     with SessionLocal() as session:
         suggestions = session.query(SuggestionDB).all()
         return suggestions
-
 
 # Job posting requests w/ JobPosting objects
 @app.post("/job-posting", response_model=JobPosting)
