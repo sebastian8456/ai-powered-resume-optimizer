@@ -30,10 +30,26 @@ function App() {
     }
   };
 
-  const optimizeResume = () => {
-    // Placeholder for future optimization functionality
-    setMessage('Optimization feature coming soon!');
-  };
+  const optimizeResume = async () => {
+    setIsLoading(true);
+    try {
+        const response = await axios.post('http://localhost:8000/optimize-resume', {
+            text: resumeText,
+            id: null  // Adding id field as null
+        });
+        
+        // Update the resume text with the optimized version
+        setResumeText(response.data.optimized_resume);
+        
+        // Show the suggestions and ATS score
+        setMessage(`ATS Score: ${response.data.ats_score}\n\nSuggestions:\n${response.data.suggestions}`);
+    } catch (error) {
+        setMessage('Error optimizing resume: ' + error.message);
+        console.error(error);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
   return (
     <div className="app">

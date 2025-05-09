@@ -142,3 +142,37 @@ async def get_job_postings():
     with SessionLocal() as session:
         job_postings = session.query(JobPostingDB).all()
         return job_postings
+    
+@app.post("/optimize-resume")
+async def optimize_resume(resume: Resume):
+    try:
+        # Get the resume text
+        resume_text = resume.text
+        
+        # For now, we'll use a simple placeholder optimization
+        # You can enhance this later with actual optimization logic
+        client = OpenAI(api_key=os.getenv("open_ai_secret"))
+        prompt = f"""Analyze this resume and provide specific suggestions for improvement:
+        {resume_text}
+        
+        Please provide:
+        1. ATS score (0-100)
+        2. Key strengths
+        3. Areas for improvement
+        4. Specific suggestions for each section
+        5. An optimized version of the resume"""
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini-2024-07-18",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        suggestions = response.choices[0].message.content
+        
+        return {
+            "ats_score": 75,  # Placeholder score
+            "suggestions": suggestions,
+            "optimized_resume": resume_text  # For now, return the original text
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -23,4 +23,7 @@ export const getJobPostings = () => api.get('/job-postings');
 export const addJobPosting = (jobPosting) => api.post('/job-posting', jobPosting);
 export const deleteJobPosting = (id) => api.delete(`/job-posting?job_posting_id=${id}`);
 
+// Add this with your other API endpoints
+export const optimizeResume = (resume) => api.post('/optimize-resume', resume);
+
 export default api;
