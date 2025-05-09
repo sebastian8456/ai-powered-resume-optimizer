@@ -13,9 +13,9 @@ The **AI-Powered Resume Optimizer with Job Matching** is a web application desig
 
 ### Tech Stack:
 - **Frontend:** React JS
-- **Backend:** Python with Flask
+- **Backend:** Python with FastAPI
 - **Database:** PostgreSQL
-- **AI:** Hugging Face (for resume analysis and job matching)
+- **AI:** OpenAI (for resume analysis and job matching)
 - **Deployment:**
   - Frontend: Vercel
   - Backend: Render
