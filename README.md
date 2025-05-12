@@ -23,7 +23,7 @@ The **AI-Powered Resume Optimizer with Job Matching** is a web application desig
 ---
 
 ### Functional Requirements:
-- **Resume Uploading:** Users should be able to upload their resume.
+- **Resume Uploading:** Users should be able to upload their resume or generate an example resume.
 - **ATS Score Calculation:** Users should get an ATS score associated with their resume.
 - **Resume Improvement Suggestions:** Users should get AI-powered suggestions to improve their resume.
 - **Job Matching:** Users should be recommended job listings based on resume data.
