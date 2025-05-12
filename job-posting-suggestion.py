@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 # ---------- DATABASE SETUP ----------
-DATABASE_URL = "postgresql://job_resume_optimizer_8bno_user:E1yfTpFDnWcWH3NtSyPcmO7zhrNDcNCS@dpg-d0f3g2hr0fns73cq7ojg-a.oregon-postgres.render.com/job_resume_optimizer_8bno"
+DATABASE_URL = " "
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
