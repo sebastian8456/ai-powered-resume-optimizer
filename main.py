@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from dotenv import load_dotenv
 import requests
 from backend.APIs.open_ai import *
@@ -8,6 +8,8 @@ from backend.classes.suggestion import *
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from fastapi.middleware.cors import CORSMiddleware
+import PyPDF2
+import io
 
 app = FastAPI()
 load_dotenv()
@@ -149,30 +151,89 @@ async def optimize_resume(resume: Resume):
         # Get the resume text
         resume_text = resume.text
         
-        # For now, we'll use a simple placeholder optimization
-        # You can enhance this later with actual optimization logic
         client = OpenAI(api_key=os.getenv("open_ai_secret"))
-        prompt = f"""Analyze this resume and provide specific suggestions for improvement:
-        {resume_text}
-        
-        Please provide:
-        1. ATS score (0-100)
-        2. Key strengths
-        3. Areas for improvement
-        4. Specific suggestions for each section
-        5. An optimized version of the resume"""
+        prompt = f"""Analyze this resume and provide specific, actionable suggestions for improvement. Use markdown formatting:
+- Use **bold** for emphasis
+- Use ## for section headers
+- Use bullet points (-) for lists
+- Add a blank line after each section
+
+Format your response as follows:
+
+## KEY STRENGTHS
+- List 3 main strengths of the resume
+
+## AREAS FOR IMPROVEMENT
+- List 3 specific areas that need enhancement
+
+## SECTION-SPECIFIC SUGGESTIONS
+
+### Summary/Objective
+- Provide 2-3 specific suggestions
+
+### Experience
+- Provide 2-3 specific suggestions for each role
+- Focus on impact and metrics
+
+### Education
+- Provide 1-2 specific suggestions
+
+### Skills
+- Provide 2-3 specific suggestions for better presentation
+
+## OPTIMIZED VERSION
+[Provide a clean, optimized version of the resume with the suggested improvements implemented]
+
+Resume to analyze:
+{resume_text}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini-2024-07-18",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=1000
         )
         
         suggestions = response.choices[0].message.content
         
         return {
-            "ats_score": 75,  # Placeholder score
             "suggestions": suggestions,
-            "optimized_resume": resume_text  # For now, return the original text
+            "optimized_resume": resume_text
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload-resume")
+async def upload_resume(file: UploadFile = File(...)):
+    try:
+        # Read the uploaded file
+        contents = await file.read()
+        
+        # Check if it's a PDF file
+        if file.content_type == "application/pdf":
+            # Create a PDF reader object
+            pdf_file = io.BytesIO(contents)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # Extract text from all pages
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            
+            # Create a new resume object
+            resume = Resume(text=text)
+            
+            # Save to database
+            with SessionLocal() as session:
+                db_resume = ResumeDB(**resume.dict())
+                session.add(db_resume)
+                session.commit()
+                session.refresh(db_resume)
+                return db_resume
+        else:
+            raise HTTPException(status_code=400, detail="Only PDF files are supported")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await file.close()

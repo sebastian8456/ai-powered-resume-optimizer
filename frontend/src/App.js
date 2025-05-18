@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import './App.css';
 
 function App() {
@@ -7,13 +8,37 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setResumeText(event.target.result);
-    };
-    reader.readAsText(file);
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      if (file.type === 'application/pdf') {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await axios.post('http://localhost:8000/upload-resume', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        setResumeText(response.data.text);
+        setMessage('PDF uploaded and parsed successfully!');
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setResumeText(event.target.result);
+        };
+        reader.readAsText(file);
+      }
+    } catch (error) {
+      setMessage('Error uploading file: ' + error.message);
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const generateExampleResume = async () => {
@@ -35,14 +60,14 @@ function App() {
     try {
         const response = await axios.post('http://localhost:8000/optimize-resume', {
             text: resumeText,
-            id: null  // Adding id field as null
+            id: null
         });
         
         // Update the resume text with the optimized version
         setResumeText(response.data.optimized_resume);
         
-        // Show the suggestions and ATS score
-        setMessage(`ATS Score: ${response.data.ats_score}\n\nSuggestions:\n${response.data.suggestions}`);
+        // Set the markdown content directly
+        setMessage(response.data.suggestions);
     } catch (error) {
         setMessage('Error optimizing resume: ' + error.message);
         console.error(error);
@@ -83,11 +108,17 @@ function App() {
           onClick={optimizeResume} 
           disabled={!resumeText || isLoading}
         >
-          Optimize Resume
+          {isLoading ? 'Optimizing...' : 'Optimize Resume'}
         </button>
       </div>
 
-      {message && <div className="message">{message}</div>}
+      {message && (
+        <div className="message">
+          <div className="suggestions">
+            <ReactMarkdown>{message}</ReactMarkdown>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
