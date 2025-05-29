@@ -1,1 +1,10 @@
+*.db
+*.sqlite
+*.sqlite3
+resume-checker.db
+
 .env
+
+__pycache__/
+
+frontend/node-modules/
