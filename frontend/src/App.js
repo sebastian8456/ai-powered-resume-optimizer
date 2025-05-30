@@ -10,6 +10,16 @@ function App() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [message, setMessage] = useState('');
   
+  // New state for structured suggestions
+  const [suggestions, setSuggestions] = useState({
+    summary: [],
+    experience: [],
+    education: [],
+    skills: [],
+    other: []
+  });
+  const [isExporting, setIsExporting] = useState(false);
+  
   // Auth state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLogin, setShowLogin] = useState(true); // true for login, false for register
@@ -167,21 +177,73 @@ function App() {
             id: null
         });
         
-        // Update the resume text with the optimized version
-        setResumeText(response.data.optimized_resume);
-        
-        // Set the markdown content directly
-        setMessage(response.data.suggestions);
+        // Update suggestions with the structured data from the backend
+        if (response.data && response.data.suggestions) {
+            setSuggestions(response.data.suggestions);
+            setMessage('Resume analyzed! Click on suggestions below to apply them.');
+        } else {
+            setMessage('Error: Invalid response format from server');
+        }
     } catch (error) {
         if (error.response?.status === 401) {
           setMessage('Please login to optimize resumes');
           handleLogout();
         } else {
-          setMessage('Error optimizing resume: ' + error.message);
+          setMessage('Error optimizing resume: ' + (error.response?.data?.detail || error.message));
         }
         console.error(error);
     } finally {
         setIsOptimizing(false);
+    }
+  };
+
+  const applySuggestion = (suggestion) => {
+    if (suggestion.original) {
+      // Replace existing text
+      setResumeText(prevText => {
+        const newText = prevText.replace(suggestion.original, suggestion.improved);
+        return newText;
+      });
+    } else {
+      // Add new text
+      setResumeText(prevText => {
+        // Add new text with proper spacing
+        const newText = prevText.trim() + '\n\n' + suggestion.improved;
+        return newText;
+      });
+    }
+  };
+
+  const handleExportResume = async () => {
+    setIsExporting(true);
+    try {
+      console.log('Sending resume text:', resumeText); // Debug log
+      
+      const response = await axios.post('http://localhost:8000/export-resume', {
+        text: resumeText
+      }, {
+        responseType: 'blob'  // Important: This tells axios to expect binary data
+      });
+      
+      console.log('Received response:', response); // Debug log
+      
+      // Create a download link for the PDF
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'resume.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setMessage('Resume downloaded successfully!');
+    } catch (error) {
+      console.error('Export error:', error); // Debug log
+      console.error('Error response:', error.response); // Debug log
+      setMessage('Error exporting resume: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -288,13 +350,47 @@ function App() {
         >
           {isOptimizing ? 'Optimizing...' : 'Optimize Resume'}
         </button>
+        
+        <button
+          onClick={handleExportResume}
+          disabled={!resumeText || isExporting}
+          className="export-btn"
+        >
+          {isExporting ? 'Exporting...' : 'Save & Export Resume'}
+        </button>
       </div>
 
       {message && (
         <div className="message">
-          <div className="suggestions">
-            <ReactMarkdown>{message}</ReactMarkdown>
-          </div>
+          <p>{message}</p>
+        </div>
+      )}
+
+      {/* Suggestions Section */}
+      {Object.keys(suggestions).length > 0 && (
+        <div className="suggestions-container">
+          <h2>Optimization Suggestions</h2>
+          {Object.entries(suggestions).map(([section, sectionSuggestions]) => (
+            sectionSuggestions.length > 0 && (
+              <div key={section} className="suggestion-section">
+                <h3>{section.charAt(0).toUpperCase() + section.slice(1)}</h3>
+                <div className="suggestion-buttons">
+                  {sectionSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => applySuggestion(suggestion)}
+                      className="suggestion-btn"
+                    >
+                      {suggestion.original ? 
+                        `Replace: "${suggestion.original.substring(0, 30)}..."` :
+                        `Add: "${suggestion.improved.substring(0, 30)}..."`
+                      }
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          ))}
         </div>
       )}
     </div>

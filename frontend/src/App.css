@@ -248,3 +248,79 @@ button:disabled {
   color: #0c5460;
   border: 1px solid #bee5eb;
 }
+
+.suggestions-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.suggestion-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.suggestion-section h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #e3f2fd;
+  padding-bottom: 0.5rem;
+}
+
+.suggestion-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.suggestion-btn {
+  background-color: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  max-width: 400px;
+  text-align: left;
+  white-space: normal;
+  height: auto;
+  margin: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.suggestion-btn:hover {
+  background-color: #bbdefb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.suggestion-btn::after {
+  content: "Click to apply this change";
+  font-size: 0.8rem;
+  color: #666;
+  font-style: italic;
+}
+
+.export-btn {
+  background-color: #4caf50;
+  color: white;
+  margin-left: 1rem;
+}
+
+.export-btn:hover {
+  background-color: #388e3c;
+}
+
+.export-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
