@@ -5,6 +5,7 @@ class JobPosting(BaseModel):
     title: str
     company: str
 
-    class Config():
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
         

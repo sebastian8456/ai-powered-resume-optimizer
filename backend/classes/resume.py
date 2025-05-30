@@ -5,5 +5,6 @@ class Resume(BaseModel):
     id: Optional[int] = None
     text: str
 
-    class Config():
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
