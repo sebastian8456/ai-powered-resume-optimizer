@@ -3,11 +3,21 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import MatchResultPage from './MatchResultPage';
+import { ResumeProvider } from './ResumeContext';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <ResumeProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/match-result" element={<MatchResultPage />} />
+        </Routes>
+      </BrowserRouter>
+      </ResumeProvider>
   </React.StrictMode>
 );
 

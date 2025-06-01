@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import ReactMarkdown from 'react-markdown';
 import './App.css';
+import { useNavigate } from 'react-router-dom';
+import { useResume } from './ResumeContext';
 
 function App() {
-  const [resumeText, setResumeText] = useState('');
+  const { resumeText, setResumeText } = useResume();
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [message, setMessage] = useState('');
-  
   // New state for structured suggestions
   const [suggestions, setSuggestions] = useState({
     summary: [],
@@ -28,6 +28,10 @@ function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [loggedInUsername, setLoggedInUsername] = useState(''); // Store logged in username
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [isMatching, setIsMatching] = useState(false);
 
   // Check if user is already logged in on component mount
   useEffect(() => {
@@ -247,6 +251,37 @@ function App() {
     }
   };
 
+  const matchJobs = async () => {
+    setIsMatching(true);
+    setError(null);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/match-jobs/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}` // ✅ Include token
+        },
+        body: JSON.stringify({ text: resumeText }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || "Failed to fetch job posting");
+      }
+
+      const data = await response.json();
+      console.log("MATCH JOB RESPONSE:", data); // ✅ For debugging
+      navigate("/match-result", { state: { jobPosting: data } }); // ✅ Working routing
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsMatching(false);
+    }
+  };
+
+
+
   // If not logged in, show auth form
   if (!isLoggedIn) {
     return (
@@ -351,6 +386,13 @@ function App() {
           {isOptimizing ? 'Optimizing...' : 'Optimize Resume'}
         </button>
         
+        <button
+          onClick={matchJobs}
+          disabled={!resumeText || isOptimizing}
+        >
+          {isMatching ? 'Matching...' : 'Match Jobs'}
+        </button>
+
         <button
           onClick={handleExportResume}
           disabled={!resumeText || isExporting}
