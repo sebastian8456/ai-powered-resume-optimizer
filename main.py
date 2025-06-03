@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Header
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Header, Query
 from dotenv import load_dotenv
 from openai import OpenAI
 from backend.APIs.open_ai import generate_resume
@@ -7,11 +7,11 @@ from backend.classes.job_posting import JobPosting
 from backend.classes.suggestion import Suggestion
 from backend.classes.user_create import UserCreate
 from backend.classes.user_login import UserLogin
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, create_engine, ForeignKey
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import requests
 import PyPDF2
 import io
@@ -24,6 +24,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph
 from reportlab.lib.units import inch
 from fastapi.responses import StreamingResponse
+import re
+import httpx
+from keybert import KeyBERT
+from sentence_transformers import SentenceTransformer
+from datetime import datetime
 
 app = FastAPI()
 load_dotenv()
@@ -31,7 +36,7 @@ load_dotenv()
 # Make sure that CORS is properly configured
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React default port
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:3000", "http://localhost:8000"],  # Your React app's URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -72,8 +77,32 @@ class JobPostingDB(Base):
     company = Column(String)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
+class SavedJob(Base):
+    __tablename__ = "saved_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    organization = Column(String)
+    location = Column(String)
+    url = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 ## Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
+
+# FOR JOBMATCH
+class ResumeInput(BaseModel):
+    text: str
+
+class SavedJobOut(BaseModel):
+    id: int
+    title: str
+    organization: str
+    location: str
+    url: str
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
 
 #### AUTHENTICATION ####
 
@@ -95,6 +124,87 @@ def get_current_user(authorization: Optional[str] = Header(None)):
             raise HTTPException(status_code=401, detail="Invalid or expired token")
         return user
 
+# Keyword Matching Helpers
+kw_model = KeyBERT(SentenceTransformer("all-MiniLM-L6-v2"))
+
+def extract_skills_keywords(text: str) -> List[str]:
+    match = re.search(r"(?i)skills?\s*:\s*(.*?)(?=(\n[a-zA-Z ]+:|$))", text, re.DOTALL)
+    if not match:
+        return []
+    skills_block = match.group(1)
+    lines = skills_block.strip().split("\n")
+    section_keywords = [line.split(":")[0].strip().lower() for line in lines if ":" in line and 1 <= len(line.split(":")[0].split()) <= 4]
+    return section_keywords
+
+def extract_summary_and_experience(text: str) -> str:
+    summary_match = re.search(r"(?i)summary:\s*(.*?)(?=(\n[a-zA-Z ]+:|skills:))", text, re.DOTALL)
+    experience_match = re.search(r"(?i)professional experience:\s*(.*)", text, re.DOTALL)
+    summary = summary_match.group(1).strip() if summary_match else ""
+    experience = experience_match.group(1).strip() if experience_match else ""
+    return f"{summary} {experience}"
+
+def extract_keywords(text: str, max_keywords: int = 25) -> List[str]:
+    keyword_candidates = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 3), stop_words='english', top_n=max_keywords * 2)
+    filtered = [phrase.strip().lower() for phrase, _ in keyword_candidates if 2 <= len(phrase) <= 40 and len(phrase.split()) <= 4 and not any(x in phrase for x in {"etc", "responsible", "tools", "languages"})]
+    seen, keywords = set(), []
+    for kw in filtered:
+        if kw not in seen:
+            seen.add(kw)
+            keywords.append(kw)
+    return keywords[:max_keywords]
+
+async def search_usajobs(keywords: List[str]):
+    query = " OR ".join(keywords[:1])
+    url = f"https://data.usajobs.gov/api/search?Keyword={query}&ResultsPerPage=20"
+    headers = {
+        "Host": "data.usajobs.gov",
+        "User-Agent": os.getenv("USAJOBS_USER_AGENT"),
+        "Authorization-Key": os.getenv("USAJOBS_API_KEY"),
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(url, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="USAJobs API error")
+        return response.json()
+
+# Job Matching Endpoints
+@app.post("/match-jobs/")
+async def match_jobs(resume: ResumeInput, save_results: bool = Query(False), current_user: UserDB = Depends(get_current_user)):
+    skills_keywords = extract_skills_keywords(resume.text)
+    text_block = extract_summary_and_experience(resume.text)
+    phrase_keywords = extract_keywords(text_block)
+    all_keywords = list(dict.fromkeys(skills_keywords + phrase_keywords))
+    irrelevant_terms = {"tools", "languages", "team", "experience", "responsible"}
+    cleaned_keywords = [kw for kw in all_keywords if kw.lower() not in irrelevant_terms][:7]
+    if not cleaned_keywords:
+        full_keywords = extract_keywords(resume.text, max_keywords=15)
+        cleaned_keywords = full_keywords[:7] if full_keywords else [resume.text.strip()]
+
+    jobs_data = await search_usajobs(cleaned_keywords)
+    matched_jobs = []
+    with SessionLocal() as session:
+        for job in jobs_data.get("SearchResult", {}).get("SearchResultItems", []):
+            job_info = {
+                "title": job["MatchedObjectDescriptor"]["PositionTitle"],
+                "organization": job["MatchedObjectDescriptor"]["OrganizationName"],
+                "location": job["MatchedObjectDescriptor"]["PositionLocation"][0]["LocationName"],
+                "url": job["MatchedObjectDescriptor"]["PositionURI"],
+            }
+            matched_jobs.append(job_info)
+            if save_results:
+                new_job = SavedJob(**job_info)
+                session.add(new_job)
+        if save_results:
+            session.commit()
+
+    return {"keywords": cleaned_keywords, "jobs": matched_jobs}
+
+@app.get("/saved-jobs/", response_model=List[SavedJobOut])
+async def get_saved_jobs(current_user: UserDB = Depends(get_current_user)):
+    with SessionLocal() as session:
+        jobs = session.query(SavedJob).order_by(SavedJob.timestamp.desc()).limit(20).all()
+        return jobs
+    
 #### AUTHENTICATION ENDPOINTS ####
 @app.post("/register")
 async def register(user: UserCreate):
