@@ -50,9 +50,13 @@ button:disabled {
 }
 
 .optimize-section {
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
   margin: 20px 0;
 }
+
 
 .optimize-section button {
   padding: 12px 25px;
@@ -313,7 +317,6 @@ button:disabled {
 .export-btn {
   background-color: #4caf50;
   color: white;
-  margin-left: 1rem;
 }
 
 .export-btn:hover {
