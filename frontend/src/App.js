@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
+import { useNavigate } from 'react-router-dom';
 
 function App() {
   const [resumeText, setResumeText] = useState('');
@@ -28,6 +29,9 @@ function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [loggedInUsername, setLoggedInUsername] = useState(''); // Store logged in username
+
+  const [optimizedText, setOptimizedText] = useState('');
+  const navigate = useNavigate();
 
   // Check if user is already logged in on component mount
   useEffect(() => {
@@ -177,9 +181,9 @@ function App() {
             id: null
         });
         
-        // Update suggestions with the structured data from the backend
         if (response.data && response.data.suggestions) {
             setSuggestions(response.data.suggestions);
+            setOptimizedText(response.data.optimized_resume);
             setMessage('Resume analyzed! Click on suggestions below to apply them.');
         } else {
             setMessage('Error: Invalid response format from server');
@@ -199,15 +203,12 @@ function App() {
 
   const applySuggestion = (suggestion) => {
     if (suggestion.original) {
-      // Replace existing text
       setResumeText(prevText => {
         const newText = prevText.replace(suggestion.original, suggestion.improved);
         return newText;
       });
     } else {
-      // Add new text
       setResumeText(prevText => {
-        // Add new text with proper spacing
         const newText = prevText.trim() + '\n\n' + suggestion.improved;
         return newText;
       });
@@ -217,17 +218,16 @@ function App() {
   const handleExportResume = async () => {
     setIsExporting(true);
     try {
-      console.log('Sending resume text:', resumeText); // Debug log
+      console.log('Sending resume text:', resumeText);
       
       const response = await axios.post('http://localhost:8000/export-resume', {
         text: resumeText
       }, {
-        responseType: 'blob'  // Important: This tells axios to expect binary data
+        responseType: 'blob'
       });
       
-      console.log('Received response:', response); // Debug log
+      console.log('Received response:', response);
       
-      // Create a download link for the PDF
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -239,15 +239,14 @@ function App() {
       
       setMessage('Resume downloaded successfully!');
     } catch (error) {
-      console.error('Export error:', error); // Debug log
-      console.error('Error response:', error.response); // Debug log
+      console.error('Export error:', error);
+      console.error('Error response:', error.response);
       setMessage('Error exporting resume: ' + (error.response?.data?.detail || error.message));
     } finally {
       setIsExporting(false);
     }
   };
 
-  // If not logged in, show auth form
   if (!isLoggedIn) {
     return (
       <div className="app">
@@ -307,7 +306,6 @@ function App() {
     );
   }
 
-  // If logged in, show main app
   return (
     <div className="app">
       <div className="header">
@@ -366,33 +364,33 @@ function App() {
         </div>
       )}
 
-      {/* Suggestions Section */}
-      {Object.keys(suggestions).length > 0 && (
+      {typeof suggestions === 'string' && (
         <div className="suggestions-container">
           <h2>Optimization Suggestions</h2>
-          {Object.entries(suggestions).map(([section, sectionSuggestions]) => (
-            sectionSuggestions.length > 0 && (
-              <div key={section} className="suggestion-section">
-                <h3>{section.charAt(0).toUpperCase() + section.slice(1)}</h3>
-                <div className="suggestion-buttons">
-                  {sectionSuggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => applySuggestion(suggestion)}
-                      className="suggestion-btn"
-                    >
-                      {suggestion.original ? 
-                        `Replace: "${suggestion.original.substring(0, 30)}..."` :
-                        `Add: "${suggestion.improved.substring(0, 30)}..."`
-                      }
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
-          ))}
+          <ReactMarkdown>{suggestions}</ReactMarkdown>
         </div>
       )}
+
+      {optimizedText && (
+        <div style={{ marginTop: '30px', textAlign: 'center' }}>
+          <button
+            onClick={() => navigate('/optimized', { state: { optimizedText } })}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            Apply All Suggestions
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
