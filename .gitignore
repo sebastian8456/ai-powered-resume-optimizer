@@ -4,6 +4,7 @@
 resume-checker.db
 
 .env
+.venv
 
 __pycache__/
 

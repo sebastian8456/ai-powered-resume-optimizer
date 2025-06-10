@@ -1,34 +1,31 @@
+import io
+import PyPDF2
+import os
+import bcrypt
+import secrets
+import re
+import httpx
+from fpdf import FPDF
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Header, Query
 from dotenv import load_dotenv
 from openai import OpenAI
+from sqlalchemy import Column, Integer, String, DateTime, create_engine, ForeignKey
+from sqlalchemy.orm import sessionmaker, declarative_base
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, List
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph
+from fastapi.responses import StreamingResponse
+from keybert import KeyBERT
+from sentence_transformers import SentenceTransformer
+from datetime import datetime
 from backend.APIs.open_ai import generate_resume
 from backend.classes.resume import Resume
 from backend.classes.job_posting import JobPosting
 from backend.classes.suggestion import Suggestion
 from backend.classes.user_create import UserCreate
 from backend.classes.user_login import UserLogin
-from sqlalchemy import Column, Integer, String, DateTime, create_engine, ForeignKey
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
-import requests
-import PyPDF2
-import io
-import os
-import bcrypt
-import secrets
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph
-from reportlab.lib.units import inch
-from fastapi.responses import StreamingResponse
-import re
-import httpx
-from keybert import KeyBERT
-from sentence_transformers import SentenceTransformer
-from datetime import datetime
 
 app = FastAPI()
 load_dotenv()
@@ -449,8 +446,6 @@ async def upload_resume(file: UploadFile = File(...), current_user: UserDB = Dep
         await file.close()
 
         from fastapi.responses import StreamingResponse
-import io
-from fpdf import FPDF
 
 # Export Resume as PDF
 @app.post("/export-resume")
