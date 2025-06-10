@@ -358,84 +358,61 @@ async def optimize_resume(resume: Resume, current_user: UserDB = Depends(get_cur
     try:
         resume_text = resume.text
 
-        client = OpenAI(api_key=os.getenv("open_ai_secret"))
-        prompt = f"""
-You're an expert resume editor. Analyze the following resume and return structured JSON with specific, actionable changes. Each suggestion should be a complete replacement or addition that can be directly applied to the resume. The response must be valid JSON with this exact structure:
+        api_key = os.getenv("open_ai_secret")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API key not found in environment variables")
 
-{{
-  "suggestions": {{
-    "summary": [
-      {{
-        "original": "current text to replace (or empty string if adding new)",
-        "improved": "improved version of the text"
-      }}
-    ],
-    "experience": [
-      {{
-        "original": "current text to replace (or empty string if adding new)",
-        "improved": "improved version of the text"
-      }}
-    ],
-    "education": [
-      {{
-        "original": "current text to replace (or empty string if adding new)",
-        "improved": "improved version of the text"
-      }}
-    ],
-    "skills": [
-      {{
-        "original": "current text to replace (or empty string if adding new)",
-        "improved": "improved version of the text"
-      }}
-    ],
-    "other": [
-      {{
-        "original": "current text to replace (or empty string if adding new)",
-        "improved": "improved version of the text"
-      }}
-    ]
-  }}
-}}
+        client = OpenAI(api_key=api_key)
+
+        prompt = f"""Analyze this resume and provide specific, actionable suggestions for improvement. Use markdown formatting:
+- Use **bold** for emphasis
+- Use ## for section headers
+- Use bullet points (-) for lists
+- Add a blank line after each section
+
+Format your response as follows:
+
+## KEY STRENGTHS
+- List 3 main strengths of the resume
+
+## AREAS FOR IMPROVEMENT
+- List 3 specific areas that need enhancement
+
+## SECTION-SPECIFIC SUGGESTIONS
+
+### Summary/Objective
+- Provide 2-3 specific suggestions
+
+### Experience
+- Provide 2-3 specific suggestions for each role
+- Focus on impact and metrics
+
+### Education
+- Provide 1-2 specific suggestions
+
+### Skills
+- Provide 2-3 specific suggestions for better presentation
+
+## OPTIMIZED VERSION
+[Provide a clean, optimized version of the resume with the suggested improvements implemented]
 
 Resume to analyze:
-{resume_text}
-
-For each suggestion:
-1. If replacing existing text, include both the original text and the improved version
-2. If adding new content, use empty string for "original" and provide the new content in "improved"
-3. Make each suggestion specific and actionable
-4. Return ONLY the JSON object, no other text
-"""
+{resume_text}"""
 
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=1000
         )
-        
-        # Parse the response to ensure it's valid JSON
-        try:
-            suggestions = response.choices[0].message.content
-            # Clean the response to ensure it's valid JSON
-            suggestions = suggestions.strip()
-            if suggestions.startswith('```json'):
-                suggestions = suggestions[7:]
-            if suggestions.endswith('```'):
-                suggestions = suggestions[:-3]
-            suggestions = suggestions.strip()
-            
-            # Parse the JSON to validate it
-            import json
-            parsed_suggestions = json.loads(suggestions)
-            return parsed_suggestions
-            
-        except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {str(e)}")
-            print(f"Raw response: {suggestions}")
-            raise HTTPException(status_code=500, detail="Invalid response format from AI")
-        
+
+        suggestions = response.choices[0].message.content
+
+        return {
+            "suggestions": suggestions,
+            "optimized_resume": resume_text
+        }
     except Exception as e:
-        print(f"Error in optimize_resume: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -471,71 +448,45 @@ async def upload_resume(file: UploadFile = File(...), current_user: UserDB = Dep
     finally:
         await file.close()
 
-# Export resume
+        from fastapi.responses import StreamingResponse
+import io
+from fpdf import FPDF
+
+# Export Resume as PDF
 @app.post("/export-resume")
-async def export_resume(updated_text: dict, current_user: UserDB = Depends(get_current_user)):
+def export_resume(resume: Resume):
     try:
-        print("Starting export-resume process...")
-        text = updated_text.get("text")
-        if not text:
-            print("Error: No text provided in request")
-            raise HTTPException(status_code=400, detail="Missing resume text")
+        if not resume.text or not resume.text.strip():
+            raise HTTPException(status_code=400, detail="Resume content is empty.")
 
-        print("Creating PDF buffer...")
-        # Create a PDF in memory
-        buffer = io.BytesIO()
-        canvas_obj = canvas.Canvas(buffer, pagesize=letter)
-        width, height = letter
+        from io import BytesIO
+        from reportlab.pdfgen import canvas
 
-        print("Setting up styles...")
-        # Set up styles
-        styles = getSampleStyleSheet()
-        style = ParagraphStyle(
-            'CustomStyle',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=14,
-            spaceBefore=6,
-            spaceAfter=6
-        )
+        buffer = BytesIO()
+        pdf = canvas.Canvas(buffer)
+        pdf.setFont("Helvetica", 12)
 
-        print("Processing text...")
-        # Split text into lines and create paragraphs
-        y = height - inch  # Start from top of page
-        for line in text.split('\n'):
-            if line.strip():  # Skip empty lines
-                try:
-                    p = Paragraph(line, style)
-                    p.wrapOn(canvas_obj, width - 2*inch, height)
-                    p.drawOn(canvas_obj, inch, y)
-                    y -= p.height + 6  # Move down for next paragraph
+        top = 750
+        line_height = 15
+        for i, line in enumerate(resume.text.split('\n')):
+            y = top - i * line_height
+            if y < 40:
+                pdf.showPage()
+                pdf.setFont("Helvetica", 12)
+                top = 750
+                y = top
+            pdf.drawString(40, y, line)
 
-                    # If we're near the bottom of the page, start a new page
-                    if y < inch:
-                        canvas_obj.showPage()
-                        y = height - inch
-                except Exception as e:
-                    print(f"Error processing line: {line}")
-                    print(f"Error details: {str(e)}")
-                    continue
-
-        print("Saving canvas...")
-        canvas_obj.save()
+        pdf.save()
         buffer.seek(0)
 
-        print("Returning PDF response...")
-        # Return the PDF file
         return StreamingResponse(
             buffer,
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": "attachment; filename=resume.pdf"
-            }
+            headers={"Content-Disposition": "attachment; filename=resume.pdf"}
         )
 
-    except Exception as e:
-        print(f"Error in export_resume: {str(e)}")
-        print(f"Error type: {type(e)}")
+    except Exception:
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print("Export Resume Error:\n", traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Failed to export resume.")

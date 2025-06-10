@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import OptimizedResume from './components/OptimizedResume';
 import reportWebVitals from './reportWebVitals';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import MatchResultPage from './MatchResultPage';
@@ -15,6 +16,8 @@ root.render(
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/match-result" element={<MatchResultPage />} />
+          <Route path="/optimized" element={<OptimizedResume />} />
+          {/* Add more routes as needed */}
         </Routes>
       </BrowserRouter>
       </ResumeProvider>
