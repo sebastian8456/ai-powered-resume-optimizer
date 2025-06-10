@@ -33,7 +33,7 @@ load_dotenv()
 # Make sure that CORS is properly configured
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000", "http://localhost:3000", "http://localhost:8000"],  # Your React app's URL
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:3000", "http://localhost:8000", "http://18.217.56.36:8000", "http://18.217.56.36:3000"],  # Your React app's URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

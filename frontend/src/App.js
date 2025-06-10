@@ -5,6 +5,8 @@ import './App.css';
 import { useNavigate } from 'react-router-dom';
 import { useResume } from './ResumeContext';
 
+const IP = "18.217.56.36"
+
 function App() {
   const { resumeText, setResumeText } = useResume();
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +63,7 @@ function App() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:8000/register', {
+      await axios.post('http://' + IP + ':8000/register', {
         username,
         password
       });
@@ -80,7 +82,7 @@ function App() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/login', {
+      const response = await axios.post('http://' + IP + ':8000/login', {
         username,
         password
       });
@@ -103,7 +105,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:8000/logout');
+      await axios.post('http://' + IP + ':8000/logout');
     } catch (error) {
       console.log('Logout request failed, but continuing with local logout');
     }
@@ -128,7 +130,7 @@ function App() {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await axios.post('http://localhost:8000/upload-resume', formData, {
+        const response = await axios.post('http://' + IP + ':8000/upload-resume', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -159,7 +161,7 @@ function App() {
   const generateExampleResume = async () => {
     setIsGenerating(true);
     try {
-      const response = await axios.get('http://localhost:8000/create-resume');
+      const response = await axios.get('http://' + IP + ':8000/create-resume');
       setResumeText(response.data['New resume: ']);
       setMessage('Example resume generated!');
     } catch (error) {
@@ -178,7 +180,7 @@ function App() {
   const optimizeResume = async () => {
     setIsOptimizing(true);
     try {
-        const response = await axios.post('http://localhost:8000/optimize-resume', {
+        const response = await axios.post('http://' + IP + ':8000/optimize-resume', {
             text: resumeText,
             id: null
         });
@@ -227,7 +229,7 @@ setSuggestions(cleanSuggestions);
     try {
       console.log('Sending resume text:', resumeText);
       
-      const response = await axios.post('http://localhost:8000/export-resume', {
+      const response = await axios.post('http://' + IP + ':8000/export-resume', {
         text: resumeText
       }, {
         responseType: 'blob'
